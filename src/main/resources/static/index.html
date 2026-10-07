@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ResQRoute — Intelligent Traffic &amp; Emergency Response</title>
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+
+<!-- ============ AUTH ============ -->
+<section id="authView" class="auth-wrap hidden">
+  <div class="auth-card">
+    <div class="brand">
+      <span class="brand-mark">RQ</span>
+      <div>
+        <h1>ResQRoute</h1>
+        <p>Intelligent Traffic &amp; Emergency Response System</p>
+      </div>
+    </div>
+
+    <div class="auth-tabs">
+      <button class="auth-tab active" data-authtab="login">Login</button>
+      <button class="auth-tab" data-authtab="register">Register</button>
+    </div>
+
+    <form id="loginForm" class="auth-form">
+      <label>Username <input name="username" required autocomplete="username"></label>
+      <label>Password <input name="password" type="password" required autocomplete="current-password"></label>
+      <button class="btn primary" type="submit">Sign in</button>
+      <p class="hint">Demo accounts — admin/admin123 · traffic/traffic123 · responder/responder123 · citizen/citizen123</p>
+    </form>
+
+    <form id="registerForm" class="auth-form hidden">
+      <label>Username <input name="username" required minlength="3"></label>
+      <label>Email <input name="email" type="email" required></label>
+      <label>Password <input name="password" type="password" required minlength="6"></label>
+      <button class="btn primary" type="submit">Create account</button>
+      <p class="hint">Self-registration creates a USER role account.</p>
+    </form>
+
+    <div id="authMessage" class="auth-message hidden"></div>
+  </div>
+</section>
+
+<!-- ============ APP ============ -->
+<section id="appView" class="hidden">
+  <header class="topbar">
+    <div class="brand small">
+      <span class="brand-mark">RQ</span>
+      <strong>ResQRoute</strong>
+    </div>
+    <nav id="mainNav" class="main-nav"></nav>
+    <div class="user-chip">
+      <span id="liveDot" class="dot off" title="WebSocket live updates"></span>
+      <span id="userLabel">—</span>
+      <button id="logoutBtn" class="btn ghost">Logout</button>
+    </div>
+  </header>
+
+  <main>
+    <!-- ===== MAP / ROUTES ===== -->
+    <section class="panel" id="panel-routes">
+      <div class="grid map-layout">
+        <div class="card">
+          <div class="card-head">
+            <h2>City network</h2>
+            <div class="legend">
+              <span class="lg free"></span> Free
+              <span class="lg moderate"></span> Moderate
+              <span class="lg heavy"></span> Heavy
+              <span class="lg gridlock"></span> Gridlock
+              <span class="lg blocked"></span> Blocked
+            </div>
+          </div>
+          <svg id="map" viewBox="0 0 600 440" role="img" aria-label="Road network map"></svg>
+          <p class="hint">Click an intersection to set the source, click again to set the destination.</p>
+        </div>
+
+        <div class="card">
+          <div class="card-head"><h2>Route search</h2></div>
+          <div class="form-row">
+            <label>Source
+              <select id="sourceSelect"></select>
+            </label>
+            <label>Destination
+              <select id="destSelect"></select>
+            </label>
+          </div>
+          <div class="form-row">
+            <button id="computeBtn" class="btn primary">Compute routes</button>
+            <button id="swapBtn" class="btn">Swap</button>
+          </div>
+          <div id="routeResults" class="route-results"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== INCIDENTS ===== -->
+    <section class="panel hidden" id="panel-incidents">
+      <div class="grid two">
+        <div class="card">
+          <div class="card-head"><h2>Report incident</h2></div>
+          <form id="incidentForm" class="form">
+            <label>Type
+              <select name="type" required>
+                <option>ACCIDENT</option><option>FIRE</option><option>FLOOD</option>
+                <option>ROAD_BLOCKAGE</option><option>TRAFFIC_JAM</option><option>BREAKDOWN</option>
+              </select>
+            </label>
+            <label>Severity
+              <select name="severity" required>
+                <option>LOW</option><option selected>MEDIUM</option><option>HIGH</option><option>CRITICAL</option>
+              </select>
+            </label>
+            <label>Location
+              <select name="locationId" id="incidentLocation" required></select>
+            </label>
+            <label>Affected road (optional)
+              <select name="affectedRoadId" id="incidentRoad">
+                <option value="">Auto-detect</option>
+              </select>
+            </label>
+            <label>Description <textarea name="description" rows="3"></textarea></label>
+            <button class="btn danger" type="submit">Report incident</button>
+          </form>
+        </div>
+
+        <div class="card">
+          <div class="card-head">
+            <h2>Incidents</h2>
+            <div class="form-row inline">
+              <select id="incidentFilter">
+                <option value="">All</option>
+                <option value="ACTIVE" selected>Active</option>
+                <option value="RESOLVED">Resolved</option>
+              </select>
+              <button id="refreshIncidents" class="btn ghost">Refresh</button>
+            </div>
+          </div>
+          <div id="incidentList" class="list"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== EMERGENCY ===== -->
+    <section class="panel hidden" id="panel-emergency">
+      <div class="grid two">
+        <div class="card">
+          <div class="card-head"><h2>Dispatch centre</h2></div>
+          <label>Select active incident
+            <select id="dispatchIncident"></select>
+          </label>
+          <div class="form-row">
+            <button id="calcEtaBtn" class="btn primary">Calculate ETAs</button>
+            <button id="autoDispatchBtn" class="btn danger">Auto-dispatch fastest</button>
+          </div>
+          <div id="etaTable" class="list"></div>
+        </div>
+
+        <div class="card">
+          <div class="card-head"><h2>Units</h2></div>
+          <div id="unitList" class="list"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== HOSPITALS ===== -->
+    <section class="panel hidden" id="panel-hospitals">
+      <div class="grid two">
+        <div class="card">
+          <div class="card-head"><h2>Nearest hospitals</h2></div>
+          <div class="form-row">
+            <label>From incident
+              <select id="hospitalIncident"></select>
+            </label>
+            <label>Or node
+              <select id="hospitalNode"></select>
+            </label>
+          </div>
+          <div class="form-row">
+            <label>Min beds <input id="minBeds" type="number" value="1" min="1" style="width:90px"></label>
+            <button id="recommendBtn" class="btn primary">Recommend</button>
+          </div>
+          <div id="hospitalResults" class="list"></div>
+        </div>
+        <div class="card">
+          <div class="card-head"><h2>Hospital capacity</h2></div>
+          <div id="hospitalList" class="list"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== TRAFFIC ===== -->
+    <section class="panel hidden" id="panel-traffic">
+      <div class="card">
+        <div class="card-head">
+          <h2>Traffic control</h2>
+          <button id="refreshTraffic" class="btn ghost">Refresh</button>
+        </div>
+        <table class="table" id="roadTable">
+          <thead>
+            <tr><th>Road</th><th>From</th><th>To</th><th>km</th><th>Limit</th><th>Travel</th>
+                <th>Traffic</th><th>Status</th></tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ===== ADMIN ===== -->
+    <section class="panel hidden" id="panel-admin">
+      <div class="grid two">
+        <div class="card">
+          <div class="card-head"><h2>Users</h2></div>
+          <table class="table" id="userTable">
+            <thead><tr><th>#</th><th>Username</th><th>Email</th><th>Role</th><th>State</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <div class="card">
+          <div class="card-head"><h2>Provision operator</h2></div>
+          <form id="operatorForm" class="form">
+            <label>Username <input name="username" required></label>
+            <label>Email <input name="email" type="email" required></label>
+            <label>Password <input name="password" type="password" required minlength="6"></label>
+            <label>Role
+              <select name="role">
+                <option>TRAFFIC_OPERATOR</option>
+                <option>EMERGENCY_OPERATOR</option>
+                <option>ADMIN</option>
+              </select>
+            </label>
+            <button class="btn primary" type="submit">Create operator</button>
+          </form>
+          <div class="card-head" style="margin-top:18px"><h2>Emergency units</h2></div>
+          <form id="unitForm" class="form">
+            <label>Name <input name="name" required></label>
+            <label>Type
+              <select name="type"><option>POLICE</option><option>AMBULANCE</option><option>FIRE_TRUCK</option></select>
+            </label>
+            <label>Station <select name="stationNodeId" id="unitStation"></select></label>
+            <label>Phone <input name="phone" value="911"></label>
+            <button class="btn primary" type="submit">Add unit</button>
+          </form>
+        </div>
+      </div>
+    </section>
+  </main>
+</section>
+
+<div id="toasts" class="toasts"></div>
+
+<script src="/js/api.js"></script>
+<script src="/js/map.js"></script>
+<script src="/js/app.js"></script>
+</body>
+</html>
